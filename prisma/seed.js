@@ -1,9 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...\n');
+  console.log("🌱 Seeding database...\n");
 
   await prisma.submission.deleteMany();
   await prisma.approval.deleteMany();
@@ -16,32 +16,129 @@ async function main() {
   await prisma.rfp.deleteMany();
   await prisma.orgInvite.deleteMany();
   await prisma.orgMember.deleteMany();
+  await prisma.chunk_embeddings.deleteMany();
+  await prisma.document_tags.deleteMany();
+  await prisma.document_chunks.deleteMany();
+  await prisma.document_blocks.deleteMany();
+  await prisma.document_pages.deleteMany();
+  await prisma.document_parse_runs.deleteMany();
+  await prisma.documents.deleteMany();
+  await prisma.tag.deleteMany();
   await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
 
-  const hash = await bcrypt.hash('password123', 12);
+  const hash = await bcrypt.hash("password123", 12);
 
-  const alice = await prisma.user.create({ data: { email: 'alice@example.com', name: 'Alice Johnson', passwordHash: hash, color: '#3B82F6', emailVerified: true, title: 'Bid Manager' } });
-  const bob = await prisma.user.create({ data: { email: 'bob@example.com', name: 'Bob Smith', passwordHash: hash, color: '#EF4444', emailVerified: true, title: 'Technical Lead' } });
-  const carol = await prisma.user.create({ data: { email: 'carol@example.com', name: 'Carol Davis', passwordHash: hash, color: '#10B981', emailVerified: true, title: 'Security Expert' } });
-  const dave = await prisma.user.create({ data: { email: 'dave@example.com', name: 'Dave Wilson', passwordHash: hash, color: '#F59E0B', emailVerified: true, title: 'Content Writer' } });
+  const alice = await prisma.user.create({
+    data: {
+      email: "alice@example.com",
+      name: "Alice Johnson",
+      passwordHash: hash,
+      color: "#3B82F6",
+      emailVerified: true,
+      title: "Bid Manager",
+    },
+  });
+  const bob = await prisma.user.create({
+    data: {
+      email: "bob@example.com",
+      name: "Bob Smith",
+      passwordHash: hash,
+      color: "#EF4444",
+      emailVerified: true,
+      title: "Technical Lead",
+    },
+  });
+  const carol = await prisma.user.create({
+    data: {
+      email: "carol@example.com",
+      name: "Carol Davis",
+      passwordHash: hash,
+      color: "#10B981",
+      emailVerified: true,
+      title: "Security Expert",
+    },
+  });
+  const dave = await prisma.user.create({
+    data: {
+      email: "dave@example.com",
+      name: "Dave Wilson",
+      passwordHash: hash,
+      color: "#F59E0B",
+      emailVerified: true,
+      title: "Content Writer",
+    },
+  });
 
-  console.log('✅ Users created');
+  console.log("✅ Users created");
 
-  const org = await prisma.organization.create({ data: { name: 'TechCorp Solutions', slug: 'techcorp' } });
+  const org = await prisma.organization.create({
+    data: { name: "TechCorp Solutions", slug: "techcorp" },
+  });
 
-  await prisma.orgMember.create({ data: { userId: alice.id, orgId: org.id, role: 'BID_MANAGER' } });
-  await prisma.orgMember.create({ data: { userId: bob.id, orgId: org.id, role: 'BID_EXECUTIVE' } });
-  await prisma.orgMember.create({ data: { userId: carol.id, orgId: org.id, role: 'TEAM_MEMBER' } });
-  await prisma.orgMember.create({ data: { userId: dave.id, orgId: org.id, role: 'TEAM_MEMBER' } });
+  await prisma.orgMember.create({
+    data: { userId: alice.id, orgId: org.id, role: "BID_MANAGER" },
+  });
+  await prisma.orgMember.create({
+    data: { userId: bob.id, orgId: org.id, role: "BID_EXECUTIVE" },
+  });
+  await prisma.orgMember.create({
+    data: { userId: carol.id, orgId: org.id, role: "TEAM_MEMBER" },
+  });
+  await prisma.orgMember.create({
+    data: { userId: dave.id, orgId: org.id, role: "TEAM_MEMBER" },
+  });
 
   console.log('✅ Organization "TechCorp Solutions" created');
 
+  // ── Tags ──────────────────────────────────────────────────────
+  const tags = await prisma.tag.createManyAndReturn({
+    data: [
+      { orgId: org.id, header: "Company", subheader: "Overview", createdBy: alice.id },
+      { orgId: org.id, header: "Company", subheader: "Leadership", createdBy: alice.id },
+      { orgId: org.id, header: "Technical", subheader: "Architecture", createdBy: bob.id },
+      { orgId: org.id, header: "Technical", subheader: "Security", createdBy: bob.id },
+      { orgId: org.id, header: "Technical", subheader: "Scalability", createdBy: bob.id },
+      { orgId: org.id, header: "Compliance", subheader: "Data Protection", createdBy: alice.id },
+      { orgId: org.id, header: "Compliance", subheader: "Certifications", createdBy: alice.id },
+    ],
+  });
+
+  console.log("✅ Sample tags created");
+
+  // ── Sample Document (simulates an AI-ingested doc) ────────────
+  const doc = await prisma.documents.create({
+    data: {
+      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      org_id: org.id,
+      filename: "techcorp-capabilities.pdf",
+      file_type: "application/pdf",
+      s3_url: "https://s3.example.com/techcorp/techcorp-capabilities.pdf",
+      status: "INDEXED",
+      created_by: alice.id,
+      version: 1,
+    },
+  });
+
+  // Link the document to two tags
+  await prisma.document_tags.createMany({
+    data: [
+      { documentId: doc.id, tagId: tags[0].id, createdBy: alice.id },
+      { documentId: doc.id, tagId: tags[2].id, createdBy: alice.id },
+    ],
+  });
+
+  console.log("✅ Sample document created and tagged");
+
   const rfp = await prisma.rfp.create({
     data: {
-      title: 'Enterprise Cloud Solutions RFP', company: 'MegaCorp Inc.',
-      dueDate: new Date('2026-03-15'), estimatedValue: 450000,
-      status: 'IN_PROGRESS', orgId: org.id, createdById: alice.id,
+      title: "Enterprise Cloud Solutions RFP",
+      company: "MegaCorp Inc.",
+      dueDate: new Date("2026-03-15"),
+      estimatedValue: 450000,
+      status: "IN_PROGRESS",
+      orgId: org.id,
+      createdById: alice.id,
     },
   });
 
@@ -55,47 +152,121 @@ async function main() {
     ],
   });
 
-  const s1 = await prisma.section.create({ data: { rfpId: rfp.id, title: 'Company Information', order: 1, questions: { create: [
-    { title: 'Company Overview', fullQuestion: 'Provide an overview of your company.', order: 1 },
-    { title: 'Leadership Team', fullQuestion: 'Describe your leadership team.', order: 2 },
-  ] } } });
+  const s1 = await prisma.section.create({
+    data: {
+      rfpId: rfp.id,
+      title: "Company Information",
+      order: 1,
+      questions: {
+        create: [
+          {
+            title: "Company Overview",
+            fullQuestion: "Provide an overview of your company.",
+            order: 1,
+          },
+          {
+            title: "Leadership Team",
+            fullQuestion: "Describe your leadership team.",
+            order: 2,
+          },
+        ],
+      },
+    },
+  });
 
-  const s2 = await prisma.section.create({ data: { rfpId: rfp.id, title: 'Technical Requirements', order: 2, questions: { create: [
-    { title: 'System Architecture', fullQuestion: 'Describe your proposed system architecture.', order: 1 },
-    { title: 'Scalability', fullQuestion: 'How does your solution handle scaling?', order: 2 },
-    { title: 'API Integration', fullQuestion: 'Describe your API capabilities.', order: 3 },
-  ] } } });
+  const s2 = await prisma.section.create({
+    data: {
+      rfpId: rfp.id,
+      title: "Technical Requirements",
+      order: 2,
+      questions: {
+        create: [
+          {
+            title: "System Architecture",
+            fullQuestion: "Describe your proposed system architecture.",
+            order: 1,
+          },
+          {
+            title: "Scalability",
+            fullQuestion: "How does your solution handle scaling?",
+            order: 2,
+          },
+          {
+            title: "API Integration",
+            fullQuestion: "Describe your API capabilities.",
+            order: 3,
+          },
+        ],
+      },
+    },
+  });
 
-  const s3 = await prisma.section.create({ data: { rfpId: rfp.id, title: 'Security & Compliance', order: 3, questions: { create: [
-    { title: 'Security Framework', fullQuestion: 'Describe your security framework.', order: 1 },
-    { title: 'Data Encryption', fullQuestion: 'Explain your data encryption approach.', order: 2 },
-  ] } } });
+  const s3 = await prisma.section.create({
+    data: {
+      rfpId: rfp.id,
+      title: "Security & Compliance",
+      order: 3,
+      questions: {
+        create: [
+          {
+            title: "Security Framework",
+            fullQuestion: "Describe your security framework.",
+            order: 1,
+          },
+          {
+            title: "Data Encryption",
+            fullQuestion: "Explain your data encryption approach.",
+            order: 2,
+          },
+        ],
+      },
+    },
+  });
 
   // Section access for team members (carol gets s2, dave gets s1+s3)
-  await prisma.sectionAccess.createMany({ data: [
-    { sectionId: s2.id, userId: carol.id, permission: 'EDIT' },
-    { sectionId: s1.id, userId: dave.id, permission: 'EDIT' },
-    { sectionId: s3.id, userId: dave.id, permission: 'VIEW' },
-  ] });
+  await prisma.sectionAccess.createMany({
+    data: [
+      { sectionId: s2.id, userId: carol.id, permission: "EDIT" },
+      { sectionId: s1.id, userId: dave.id, permission: "EDIT" },
+      { sectionId: s3.id, userId: dave.id, permission: "VIEW" },
+    ],
+  });
 
   // Assignments
-  await prisma.sectionAssignment.createMany({ data: [
-    { sectionId: s1.id, userId: dave.id, role: 'WRITER' },
-    { sectionId: s2.id, userId: carol.id, role: 'WRITER' },
-    { sectionId: s3.id, userId: bob.id, role: 'WRITER' },
-    { sectionId: s1.id, userId: bob.id, role: 'APPROVER', order: 1 },
-    { sectionId: s2.id, userId: alice.id, role: 'APPROVER', order: 1 },
-  ] });
+  await prisma.sectionAssignment.createMany({
+    data: [
+      { sectionId: s1.id, userId: dave.id, role: "WRITER" },
+      { sectionId: s2.id, userId: carol.id, role: "WRITER" },
+      { sectionId: s3.id, userId: bob.id, role: "WRITER" },
+      { sectionId: s1.id, userId: bob.id, role: "APPROVER", order: 1 },
+      { sectionId: s2.id, userId: alice.id, role: "APPROVER", order: 1 },
+    ],
+  });
 
-  await prisma.rfpGlobalApprover.create({ data: { rfpId: rfp.id, userId: alice.id, order: 1 } });
+  await prisma.rfpGlobalApprover.create({
+    data: { rfpId: rfp.id, userId: alice.id, order: 1 },
+  });
 
-  console.log('✅ Sample RFP created with section-level access');
-  console.log('\n🌱 Seed complete!\n');
-  console.log('Login credentials (password: password123):');
-  console.log('  alice@example.com  — Bid Manager (sees all)');
-  console.log('  bob@example.com    — Bid Executive (assigned RFPs, all sections)');
-  console.log('  carol@example.com  — Team Member (only Technical Requirements section)');
-  console.log('  dave@example.com   — Team Member (Company Info=EDIT, Security=VIEW only)');
+  console.log("✅ Sample RFP created with section-level access");
+  console.log("✅ 7 tags seeded (Company, Technical, Compliance headers)");
+  console.log("✅ 1 sample document seeded (status: INDEXED, tagged with 2 tags)");
+  console.log("\n🌱 Seed complete!\n");
+  console.log("Login credentials (password: password123):");
+  console.log("  alice@example.com  — Bid Manager (sees all)");
+  console.log(
+    "  bob@example.com    — Bid Executive (assigned RFPs, all sections)",
+  );
+  console.log(
+    "  carol@example.com  — Team Member (only Technical Requirements section)",
+  );
+  console.log(
+    "  dave@example.com   — Team Member (Company Info=EDIT, Security=VIEW only)",
+  );
 }
 
-main().catch((e) => { console.error('❌', e); process.exit(1); }).finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error("❌", e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

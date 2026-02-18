@@ -20,6 +20,7 @@ model Organization {
   members OrgMember[]
   invites OrgInvite[]
   rfps    Rfp[]
+  tags    Tag[]
 }
 
 // ─── ORG MEMBERSHIP ───────────────────────────────────────────
@@ -76,13 +77,16 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   memberships        OrgMember[]
-  rfpsCreated        Rfp[]              @relation("RfpCreator")
+  rfpsCreated        Rfp[]               @relation("RfpCreator")
   rfpMembers         RfpMember[]
   sectionAccess      SectionAccess[]
   sectionAssignments SectionAssignment[]
   approvals          Approval[]
   globalApprovals    RfpGlobalApprover[]
   submissions        Submission[]
+  documents           documents[]
+  createdTags         Tag[]              @relation("TagCreator")
+  createdDocumentTags document_tags[]    @relation("DocumentTagCreator")
 }
 
 // ─── RFP ──────────────────────────────────────────────────────
@@ -280,4 +284,128 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   CHANGES_REQUESTED
+}
+
+// ─── DOCUMENTS & AI PROCESSING ────────────────────────────────
+
+enum documentstatus {
+  PENDING
+  PROCESSING
+  INDEXED
+  FAILED
+}
+
+model documents {
+  id                  String                @id @db.Uuid
+  org_id              String
+  workspace_id        String?
+  filename            String
+  file_type           String
+  s3_url              String
+  status              String
+  created_by          String?
+  user                User?                 @relation(fields: [created_by], references: [id])
+  version             Int?
+  created_at          DateTime?             @db.Timestamp(6)
+  updated_at          DateTime?             @db.Timestamp(6)
+  document_blocks     document_blocks[]
+  document_chunks     document_chunks[]
+  document_pages      document_pages[]
+  document_parse_runs document_parse_runs[]
+  document_tags       document_tags[]
+}
+
+model document_chunks {
+  id               String             @id @db.Uuid
+  document_id      String             @db.Uuid
+  block_ids        String[]           @db.Uuid
+  chunk_text       String
+  token_count      Int?
+  chunk_index      Int?
+  created_at       DateTime?          @db.Timestamp(6)
+  chunk_embeddings chunk_embeddings[]
+  documents        documents          @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model chunk_embeddings {
+  id              String          @id @db.Uuid
+  chunk_id        String          @db.Uuid
+  embedding_model String
+  vector_id       String
+  namespace       String
+  created_at      DateTime?       @db.Timestamp(6)
+  deleted_at      DateTime?       @db.Timestamp(6)
+  document_chunks document_chunks @relation(fields: [chunk_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model document_blocks {
+  id                  String              @id @db.Uuid
+  document_id         String              @db.Uuid
+  parse_run_id        String              @db.Uuid
+  page_number         Int
+  order_index         Int
+  block_type          String
+  content             String
+  bbox                Json?
+  confidence          Float?
+  metadata            Json?
+  created_at          DateTime?           @db.Timestamp(6)
+  documents           documents           @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  document_parse_runs document_parse_runs @relation(fields: [parse_run_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model document_pages {
+  id           String    @id @db.Uuid
+  document_id  String    @db.Uuid
+  page_number  Int
+  text_density Float?
+  ocr_required Boolean?
+  created_at   DateTime? @db.Timestamp(6)
+  documents    documents @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model document_parse_runs {
+  id              String            @id @db.Uuid
+  document_id     String            @db.Uuid
+  parser_version  String
+  ocr_used        Boolean?
+  status          String
+  error_message   String?
+  started_at      DateTime?         @db.Timestamp(6)
+  completed_at    DateTime?         @db.Timestamp(6)
+  created_at      DateTime?         @db.Timestamp(6)
+  document_blocks document_blocks[]
+  documents       documents         @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// ─── TAGS ─────────────────────────────────────────────────────
+
+model Tag {
+  id           String        @id @default(cuid())
+  orgId        String        @map("org_id")
+  organisation Organization  @relation(fields: [orgId], references: [id])
+  header       String
+  subheader    String
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  createdBy    String?       @map("created_by")
+  creator      User?         @relation("TagCreator", fields: [createdBy], references: [id])
+  documentTags document_tags[]
+
+  @@map("tags")
+}
+
+model document_tags {
+  id         String    @id @default(cuid())
+  documentId String    @map("document_id") @db.Uuid
+  tagId      String    @map("tag_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  createdBy  String?   @map("created_by")
+
+  document   documents @relation(fields: [documentId], references: [id])
+  tag        Tag       @relation(fields: [tagId], references: [id])
+  creator    User?     @relation("DocumentTagCreator", fields: [createdBy], references: [id])
+
+  @@map("document_tags")
 }

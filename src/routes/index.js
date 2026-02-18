@@ -10,5 +10,7 @@ router.use('/rfps', require('./assignment.routes'));
 router.use('/rfps', require('./approval.routes'));
 router.use('/rfps', require('./submission.routes'));
 router.use('/collaboration', require('./collaboration.routes'));
+router.use('/tags', require('./tags.routes'));
+router.use('/documents', require('./documents.routes'));
 
 module.exports = router;
